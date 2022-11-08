@@ -1,5 +1,5 @@
-import pandas as pd
 import json
+import pandas as pd
 from django.http import JsonResponse
 from rest_framework import generics, status
 from rest_framework.response import Response
@@ -9,8 +9,9 @@ from skyapp.serializers import AirportSerializer
 from translate import to_latin
 from .utils import result
 from duffel_api import Duffel
+from duffel_api.models.offer_request import OfferRequest
 
-duffel = Duffel(access_token='duffel_test_yMbiVo4D2-niVT27q2XEy87CSMwsWvSE5Uu4YMm9wD7')
+client = Duffel(access_token='duffel_test_yMbiVo4D2-niVT27q2XEy87CSMwsWvSE5Uu4YMm9wD7')
 
 
 class CityCreateView(generics.GenericAPIView):
@@ -100,43 +101,58 @@ class FindTicket(APIView):
 class TestView(APIView):
 
     def post(self, request):
-        client = Duffel(access_token='duffel_test_yMbiVo4D2-niVT27q2XEy87CSMwsWvSE5Uu4YMm9wD7')
-        origin = request.data.get("from")
-        destination = request.data.get("to")
-        depart = request.data.get("date")
+        # origin = request.data.get("from")
+        # destination = request.data.get("to")
+        # depart = request.data.get("date")
         slices = [
             {
-                "origin": origin,
-                "destination": destination,
-                "departure_date": depart,
+                "origin": "NYC",
+                "destination": "IST",
+                "departure_date": "2022-12-12",
             },
         ]
+        cabin_class = 'economy'
         offer_request = (
             client.offer_requests.create()
             .passengers([{"type": "adult"}])
             .slices(slices)
             .return_offers()
-            .execute()
+            .execute(cabin_class)
         )
-        print(f"Created offer request: {offer_request.id}")
+        offers = offer_request.offers
+        flights = []
+        fly_count = 0
+        for idx, offer in enumerate(offers):
+            # for i, o in enumerate(abc):
+            #     print(o.segments)
+            flights.append(dict(
+                id=offer.id,
+                name=offer.owner.name,
+                amount=float(offer.total_amount),  # + float(offer.total_amount) / 20,
+                depart=offer.slices[0].segments[0].departing_at,
+                duration=offer.slices[0].duration,
+                airport=offer.slices[0].segments[0].destination.name,
+                iata=offer.slices[0].segments[0].origin.iata_code,
+                class_type=offer.slices[0].segments[0].passengers[0].cabin_class_marketing_name,
+                other=str(offer.slices[0])
+            ))
+            fly_count += 1
+            # f"{idx + 1}. {offer.owner.name} flight departing at "
+            # + f"{offer.slices[0].segments[0].departing_at} "
+            # + f"{offer.total_amount} {offer.total_currency}"
+            # )
+        return Response({
+            'msg': "Success",
+            "count": str(fly_count),
+            'list': flights
+        }, status=status.HTTP_200_OK)
 
-        offers = client.offers.list(offer_request.id)
-        offers_list = list(enumerate(offers))
 
-        print(f"Got {len(offers_list)} offers")
-
-        selected_offer = offers_list[0][1]
-
-        # print(f"Selected offer {selected_offer.id} to book")
-
-        priced_offer = client.offers.get(selected_offer.id)
-
-        # print(
-        #     f"The final price for offer {priced_offer.id} is {priced_offer.total_amount} ({priced_offer.total_currency})"
-        # )
-
+class SeatMapAPIView(APIView):
+    def post(self, request):
+        selected_offer_id = self.request.data.get('id')
+        priced_offer = client.offers.get(selected_offer_id)
         seat_maps = client.seat_maps.get(priced_offer.id)
-
         available_seats = []
         for _idx, row in enumerate(seat_maps[0].cabins[0].rows):
             for _idx, section in enumerate(row.sections):
@@ -147,44 +163,20 @@ class TestView(APIView):
                             and len(element.available_services) > 0
                     ):
                         available_seats.append(element)
-
+                    else:
+                        return Response({'message': "Available seats aren't found"}, status=status.HTTP_404_NOT_FOUND)
         available_seat = available_seats[0]
-        print(available_seat)
+        seats = []
+        for i, row in enumerate(available_seats):
+            seats.append(dict(
+                seat=row.designator,
+                id=row.available_services[0].id,
+                passenger_id=row.available_services[0].passenger_id,
+                total_amount=row.available_services[0].total_amount,
+                total_currency=row.available_services[0].total_currency
+            ))
+            print('zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz')
+        # print(available_seats)
+        # print(available_seat.available_services)
         available_seat_service = available_seat.available_services[0]
-
-        return Response("Zo'r")
-        # offers = offer_request.offers
-        # flights = []
-        # fly_count = 0
-        # for idx, offer in enumerate(offers):
-        #     abc = offer.slices
-        #     for i, o in enumerate(abc):
-        #         print(o.segments)
-        #     flights.append(dict(
-        #         id=offer.id,
-        #         name=offer.owner.name,
-        #         amount=float(offer.total_amount) + float(offer.total_amount) / 20,
-        #         depart=offer.slices[0].segments[0].departing_at,
-        #         duration=offer.slices[0].duration,
-        #         airport=offer.slices[0].segments[0].destination.name,
-        #         iata=offer.slices[0].segments[0].origin.iata_code,
-        #         class_type=offer.slices[0].segments[0].passengers[0].cabin_class_marketing_name,
-        #         other=str(offer.slices[0])
-        #     ))
-        #     fly_count += 1
-        #     # f"{idx + 1}. {offer.owner.name} flight departing at "
-        #     # + f"{offer.slices[0].segments[0].departing_at} "
-        #     # + f"{offer.total_amount} {offer.total_currency}"
-        #     # )
-        # return Response(flights)
-        # return Response(flights)
-        # Response({
-        #     'msg': "Success",
-        #     'list': flights
-        # }, status=status.HTTP_200_OK)
-
-# {
-# "from":"TAS",
-# "to":"IST",
-# "date":"2022-11-11"
-# }
+        return Response({'data': seats})

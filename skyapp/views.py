@@ -112,5 +112,46 @@ class ChoiceSeatAPIView(APIView):
             Decimal(priced_offer.total_amount)
             + Decimal(float(seat_amount))
         )
+        res = (
+            client.payment_intents.create()
+            .payment({
+                "amount": total_amount,
+                "currency": "USD"
+            })
+            .execute()
+        )
+        payment_intent_id = res['data']['id']
+        client_token = res['data']['client_token']
 
-        return Response('Success')
+        return Response({
+            'payment_intent_id': payment_intent_id,
+            'client_token': client_token,
+            'total_amount': total_amount
+        }, status=status.HTTP_200_OK)
+
+
+class OrderAPIView(APIView):
+    def post(self, request):
+        payment_intent_id = self.request.data.get('payment_intent_id')
+        selected_offer_id = self.request.data.get('id')
+        total_amount = self.request.data.get('total_amount')
+        client.payment_intents.confirm(payment_intent_id)
+
+        order = (
+            client.orders.create()
+            .selected_offers([selected_offer_id])
+            .payments([
+                {
+                    "type": "balance",
+                    "amount": total_amount,
+                    "currency": "USD"
+                }
+            ])
+            .metadata({
+                "payment_intent_id": payment_intent_id
+            })
+            .passengers([...])
+            .execute()
+
+        )
+        return Response(order)

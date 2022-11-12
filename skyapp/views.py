@@ -50,6 +50,14 @@ class TestView(APIView):
         # origin = request.data.get("from")
         # destination = request.data.get("to")
         # depart = request.data.get("date")
+        # cabin_class = self.request.data.get('cabin_class')
+        # res = self.request.data.get('passengers')
+        # passengers = []
+        # for i in res:
+        #     if int(i) > 12:
+        #         passengers.append({'type': 'adult'})
+        #     if int(i) < 12:
+        #         passengers.append({'age': int(i)})
         slices = [
             {
                 "origin": "TAS",
@@ -126,7 +134,6 @@ class ChoiceSeatAPIView(APIView):
         selected_offer_id = self.request.data.get("id")
         seat_amount = self.request.data.get('amount')
         priced_offer = client.offers.get(selected_offer_id)
-
         total_amount = str(
             Decimal(priced_offer.total_amount)
             + Decimal(float(seat_amount))
@@ -155,6 +162,19 @@ class OrderAPIView(APIView):
         selected_offer_id = self.request.data.get('id')
         total_amount = self.request.data.get('total_amount')
         client.payment_intents.confirm(payment_intent_id)
+        pas = self.request.data.get('passengers')
+        offer_id = self.request.data.get('offer_id')
+        offers = client.offer_requests.get(id=offer_id)
+        pas = list(pas)
+        n = 0
+        for i in pas:
+            i['id'] = offers.passengers[n].id
+            try:
+                infant_passenger_id = offers.passengers[n + 1].id
+                i['infant_passenger_id'] = infant_passenger_id
+            except:
+                pass
+            n = n + 1
 
         order = (
             client.orders.create()
@@ -169,7 +189,7 @@ class OrderAPIView(APIView):
             .metadata({
                 "payment_intent_id": payment_intent_id
             })
-            .passengers([...])
+            .passengers(pas)
             .execute()
 
         )

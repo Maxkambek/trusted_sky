@@ -1,5 +1,4 @@
 asgiref==3.5.2
-backports.zoneinfo==0.2.1
 beautifulsoup4==4.11.1
 certifi==2022.9.24
 charset-normalizer==2.1.1
@@ -32,3 +31,4 @@ sqlparse==0.4.3
 uritemplate==4.1.1
 urllib3==1.26.12
 webencodings==0.5.1
+whitenoise

@@ -12,6 +12,25 @@ from duffel_api import Duffel
 client = Duffel(access_token='duffel_test_yMbiVo4D2-niVT27q2XEy87CSMwsWvSE5Uu4YMm9wD7')
 
 
+class CityCreateView(generics.GenericAPIView):
+    serializer_class = AirportSerializer
+
+    def post(self, request):
+        file = request.data.get("file")
+        rd = pd.read_csv(f"{file}")
+        df = pd.DataFrame(rd)
+
+        for row in df.itertuples():
+            Airports.objects.get_or_create(
+                iata=row.iata,
+                name_ru=row.name_ru,
+                name_en=row.name_en,
+                parent_name_en=row.parent_name_en,
+            )
+
+        return Response("Success")
+
+
 class CitySearchView(generics.ListAPIView):
     serializer_class = AirportSerializer
 

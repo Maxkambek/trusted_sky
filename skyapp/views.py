@@ -1,4 +1,3 @@
-import json
 from decimal import Decimal
 import pandas as pd
 from rest_framework import generics, status
@@ -44,31 +43,56 @@ class CitySearchView(generics.ListAPIView):
         return queryset
 
 
+def transfer(segments, length):
+    seg = []
+    for i in range(length):
+        seg.append(dict(
+            destionation_name=segments[i].destination.name,
+            iatacode=segments[i].destination.iata_code,
+            depart_at=segments[i].departing_at,
+            arriving_at=segments[i].arriving_at,
+        ))
+        # seg[i] = segments[i].destination.name
+        # seg[f'Name {i}'] = segments[i].destination.iata_code
+        # seg[f'Depart {i}'] = segments[i].departing_at
+        # seg[f'Arriving {i}'] = segments[i].arriving_at
+    return seg
+
+
+def passengers(pas, length):
+    passenger = []
+    for i in range(length):
+        passenger.append(pas[i].passenger_id)
+    return passenger
+
+
 class TestView(APIView):
 
     def post(self, request):
-        # origin = request.data.get("from")
-        # destination = request.data.get("to")
+        origin = request.data.get("from")
+        destination = request.data.get("to")
         # depart = request.data.get("date")
         # cabin_class = self.request.data.get('cabin_class')
-        # res = self.request.data.get('passengers')
-        # passengers = []
-        # for i in res:
-        #     if int(i) > 12:
-        #         passengers.append({'type': 'adult'})
-        #     if int(i) < 12:
-        #         passengers.append({'age': int(i)})
+        res = self.request.data.get('passengers')
+        passess = []
+        for i in res:
+            if int(i) > 12:
+                passess.append({'type': 'adult'})
+            if int(i) < 2:
+                passess.append({'age': 1})
+            if int(i) < 12:
+                passess.append({'age': int(i)})
         slices = [
             {
-                "origin": "TAS",
-                "destination": "UGC",
-                "departure_date": "2022-12-12",
+                "origin": 'MOW',
+                "destination": 'NYC',
+                "departure_date": "2022-12-16",
             },
         ]
         cabin_class = 'economy'
         offer_request = (
             client.offer_requests.create()
-            .passengers([{"type": "adult"}])
+            .passengers([{"type": "adult"}, {'age': 1}, {'age': 8}])
             .slices(slices)
             .return_offers()
             .execute(cabin_class)
@@ -76,18 +100,45 @@ class TestView(APIView):
         offers = offer_request.offers
         flights = []
         fly_count = 0
+        res = None
         for idx, offer in enumerate(offers):
-            flights.append(dict(
-                id=offer.id,
-                name=offer.owner.name,
-                amount=float(offer.total_amount),  # + float(offer.total_amount) / 20,
-                depart=offer.slices[0].segments[0].departing_at,
-                duration=offer.slices[0].duration,
-                airport=offer.slices[0].segments[0].destination.name,
-                iata=offer.slices[0].segments[0].origin.iata_code,
-                class_type=offer.slices[0].segments[0].passengers[0].cabin_class_marketing_name,
-                other=str(offer.slices[0])
-            ))
+            print(len(offer.slices[0].segments))
+            if len(offer.slices[0].segments) < 2:
+                flights.append(dict(
+                    id=offer.id,
+                    length=len(offer.slices[0].segments),
+                    name=offer.owner.name,
+                    amount=float(offer.total_amount) + float(offer.total_amount) / 20,
+                    depart=offer.slices[0].segments[0].departing_at,
+                    arriving_at=offer.slices[0].segments[0].arriving_at,
+                    duration=offer.slices[0].duration,
+                    airport=offer.slices[0].segments[0].destination.name,
+                    iata=offer.slices[0].segments[0].origin.iata_code,
+                    iata_2=str(offer.slices[0].segments[0].destination.iata_code),
+                    class_type=offer.slices[0].segments[0].passengers[0].cabin_class_marketing_name,
+                    passenger_id=passengers(offer.slices[0].segments[0].passengers,
+                                            len(offer.slices[0].segments[0].passengers)),
+                    other=str(offer.slices[0].segments)
+                ))
+            if len(offer.slices[0].segments) >= 2:
+                flights.append(dict(
+                    id=offer.id,
+                    length=len(offer.slices[0].segments),
+                    name=offer.owner.name,
+                    amount=float(offer.total_amount) + float(offer.total_amount) / 20,
+                    depart=offer.slices[0].segments[0].departing_at,
+                    arriving_at=offer.slices[0].segments[-1].arriving_at,
+                    duration=offer.slices[0].duration,
+                    airport=offer.slices[0].segments[-1].destination.name,
+                    airport_2=transfer(offer.slices[0].segments, len(offer.slices[0].segments)),
+                    iata=offer.slices[0].segments[0].origin.iata_code,
+                    iata_2=str(offer.slices[0].segments[0].destination.iata_code),
+                    class_type=offer.slices[0].segments[0].passengers[0].cabin_class_marketing_name,
+                    passenger_id=passengers(offer.slices[0].segments[0].passengers,
+                                            len(offer.slices[0].segments[0].passengers)),
+                    other=str(offer.slices[0].segments)
+                ))
+            # res = transfer(offer.slices[0].segments, len(offer.slices[0].segments))
             fly_count += 1
             # f"{idx + 1}. {offer.owner.name} flight departing at "
             # + f"{offer.slices[0].segments[0].departing_at} "
@@ -96,7 +147,8 @@ class TestView(APIView):
         return Response({
             'msg': "Success",
             "count": str(fly_count),
-            'list': flights
+            'list': flights,
+            'passengers': passess
         }, status=status.HTTP_200_OK)
 
 
@@ -164,18 +216,36 @@ class OrderAPIView(APIView):
         client.payment_intents.confirm(payment_intent_id)
         pas = self.request.data.get('passengers')
         offer_id = self.request.data.get('offer_id')
+        passess = self.request.data.get('passengers')
         offers = client.offer_requests.get(id=offer_id)
-        pas = list(pas)
-        n = 0
-        for i in pas:
-            i['id'] = offers.passengers[n].id
-            try:
-                infant_passenger_id = offers.passengers[n + 1].id
-                i['infant_passenger_id'] = infant_passenger_id
-            except:
-                pass
-            n = n + 1
-
+        infant = None
+        if 1 in list(passess):
+            infant = passess.index(1)
+        res = []
+        for i in list(pas):
+            if i == 0 and infant:
+                res.append(dict(
+                    born_on=i.born_on,
+                    email=i.email,
+                    family_name=i.family_name,
+                    gender=i.gender,
+                    given_name=i.given_name,
+                    id=offers.passengers[i].id,
+                    infant_passenger_id=offers.passengers[infant].id,
+                    phone_number=i.phone_number,
+                    title=i.title
+                ))
+            else:
+                res.append(dict(
+                    born_on=i.born_on,
+                    email=i.email,
+                    family_name=i.family_name,
+                    gender=i.gender,
+                    given_name=i.given_name,
+                    id=offers.passengers[i].id,
+                    phone_number=i.phone_number,
+                    title=i.title
+                ))
         order = (
             client.orders.create()
             .selected_offers([selected_offer_id])
@@ -189,7 +259,7 @@ class OrderAPIView(APIView):
             .metadata({
                 "payment_intent_id": payment_intent_id
             })
-            .passengers(pas)
+            .passengers(res)
             .execute()
 
         )

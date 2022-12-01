@@ -32,3 +32,4 @@ uritemplate==4.1.1
 urllib3==1.26.12
 webencodings==0.5.1
 whitenoise
+django-cors-headers==3.13.0

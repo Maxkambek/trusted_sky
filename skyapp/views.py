@@ -71,8 +71,8 @@ class TestView(APIView):
     def post(self, request):
         origin = request.data.get("from")
         destination = request.data.get("to")
-        # depart = request.data.get("date")
-        # cabin_class = self.request.data.get('cabin_class')
+        depart = request.data.get("date")
+        cabin_class = self.request.data.get('cabin_class')
         res = self.request.data.get('passengers')
         passess = []
         for i in res:
@@ -84,12 +84,12 @@ class TestView(APIView):
                 passess.append({'age': int(i)})
         slices = [
             {
-                "origin": 'MOW',
-                "destination": 'NYC',
-                "departure_date": "2022-12-16",
+                "origin": origin,
+                "destination": destination,
+                "departure_date": depart,
             },
         ]
-        cabin_class = 'economy'
+        # cabin_class = 'economy'
         offer_request = (
             client.offer_requests.create()
             .passengers([{"type": "adult"}, {'age': 1}, {'age': 8}])

@@ -66,13 +66,24 @@ def passengers(pas, length):
     return passenger
 
 
+def date_time(date):
+    data = date[1:]
+    a = ''
+    for i in data:
+        if not i == 'T':
+            a = a + i
+        if not i.isdigit():
+            a = a + ' '
+    return (a.lower()).strip()
+
+
 class TestView(APIView):
 
     def post(self, request):
         origin = request.data.get("from")
         destination = request.data.get("to")
         depart = request.data.get("date")
-        cabin_class = self.request.data.get('cabin_class')
+        # cabin_class = self.request.data.get('cabin_class')
         res = self.request.data.get('passengers')
         passess = []
         for i in res:
@@ -89,10 +100,10 @@ class TestView(APIView):
                 "departure_date": depart,
             },
         ]
-        # cabin_class = 'economy'
+        cabin_class = 'economy'
         offer_request = (
             client.offer_requests.create()
-            .passengers([{"type": "adult"}, {'age': 1}, {'age': 8}])
+            .passengers([{"type": "adult"}])
             .slices(slices)
             .return_offers()
             .execute(cabin_class)
@@ -102,7 +113,7 @@ class TestView(APIView):
         fly_count = 0
         res = None
         for idx, offer in enumerate(offers):
-            print(len(offer.slices[0].segments))
+            # print(len(offer.slices[0].segments))
             if len(offer.slices[0].segments) < 2:
                 flights.append(dict(
                     id=offer.id,
@@ -111,7 +122,8 @@ class TestView(APIView):
                     amount=float(offer.total_amount) + float(offer.total_amount) / 20,
                     depart=offer.slices[0].segments[0].departing_at,
                     arriving_at=offer.slices[0].segments[0].arriving_at,
-                    duration=offer.slices[0].duration,
+                    duration=date_time(offer.slices[0].duration),
+                    ketish_airport=str(offer.slices[0].segments[0].origin.name),
                     airport=offer.slices[0].segments[0].destination.name,
                     iata=offer.slices[0].segments[0].origin.iata_code,
                     iata_2=str(offer.slices[0].segments[0].destination.iata_code),
@@ -128,8 +140,9 @@ class TestView(APIView):
                     amount=float(offer.total_amount) + float(offer.total_amount) / 20,
                     depart=offer.slices[0].segments[0].departing_at,
                     arriving_at=offer.slices[0].segments[-1].arriving_at,
-                    duration=offer.slices[0].duration,
+                    duration=date_time(offer.slices[0].duration),
                     airport=offer.slices[0].segments[-1].destination.name,
+                    ketish_airport=offer.slices[0].segments[0].origin.name,
                     airport_2=transfer(offer.slices[0].segments, len(offer.slices[0].segments)),
                     iata=offer.slices[0].segments[0].origin.iata_code,
                     iata_2=str(offer.slices[0].segments[0].destination.iata_code),
@@ -148,7 +161,8 @@ class TestView(APIView):
             'msg': "Success",
             "count": str(fly_count),
             'list': flights,
-            'passengers': passess
+            'passengers': passess,
+            'offer_request_id': offer_request.id
         }, status=status.HTTP_200_OK)
 
 
@@ -157,7 +171,9 @@ class SeatMapAPIView(APIView):
         selected_offer_id = self.request.data.get('id')
         priced_offer = client.offers.get(selected_offer_id)
         seat_maps = client.seat_maps.get(priced_offer.id)
+        print(seat_maps)
         available_seats = []
+        print(client.seat_maps.get(selected_offer_id))
         for _idx, row in enumerate(seat_maps[0].cabins[0].rows):
             for _idx, section in enumerate(row.sections):
                 for _idx, element in enumerate(section.elements):
@@ -167,8 +183,8 @@ class SeatMapAPIView(APIView):
                             and len(element.available_services) > 0
                     ):
                         available_seats.append(element)
-                    else:
-                        return Response({'message': "Available seats aren't found"}, status=status.HTTP_404_NOT_FOUND)
+                    # else:
+                    #     return Response({'message': "Available seats aren't found"}, status=status.HTTP_404_NOT_FOUND)
         seats = []
         for i, row in enumerate(available_seats):
             seats.append(dict(
@@ -264,3 +280,10 @@ class OrderAPIView(APIView):
 
         )
         return Response(order)
+
+# {
+# "from":"TAS",
+# "to":"MOW",
+# "date":"2022-12-25",
+# "passengers":[15]
+# }

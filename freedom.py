@@ -1,3 +1,8 @@
-import hashlib
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
-print(hashlib.md5('init_payment.php;25;test;547013;23;molbulak;http://site.kz/check;7lWI4rX8pbS8UyEw'.encode()).hexdigest())
+
+class SuccessUrl(APIView):
+    def get(self, request):
+        print(request.data)
+        return Response('success')

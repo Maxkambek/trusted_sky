@@ -1,8 +1,9 @@
 from django.db import models
 
 
-class Airports(models.Model):
-    iata = models.CharField(max_length=5)
-    name_ru = models.CharField(max_length=60)
-    name_en = models.CharField(max_length=60)
-    parent_name_en = models.CharField(max_length=75)
+class Airport(models.Model):
+    iata_code = models.CharField(max_length=5, null=True)
+    name = models.CharField(max_length=100, null=True)
+    continent = models.CharField(max_length=10, null=True)
+    municipality = models.CharField(max_length=100, null=True)
+    type = models.CharField(max_length=20, null=True)

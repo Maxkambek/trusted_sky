@@ -3,43 +3,51 @@ import pandas as pd
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from skyapp.models import Airports
-from skyapp.serializers import AirportSerializer
-from translate import to_latin
+from skyapp.models import Airport
+from skyapp.serializers import AirportSerializers
 from duffel_api import Duffel
 
 client = Duffel(access_token='duffel_test_yMbiVo4D2-niVT27q2XEy87CSMwsWvSE5Uu4YMm9wD7')
 
 
 class CityCreateView(generics.GenericAPIView):
-    serializer_class = AirportSerializer
+    serializer_class = AirportSerializers
 
     def post(self, request):
         file = request.data.get("file")
         rd = pd.read_csv(f"{file}")
         df = pd.DataFrame(rd)
-
         for row in df.itertuples():
-            Airports.objects.get_or_create(
-                iata=row.iata,
-                name_ru=row.name_ru,
-                name_en=row.name_en,
-                parent_name_en=row.parent_name_en,
-            )
+            if len(row[5]) > 2:
+                Airport.objects.get_or_create(
+                    iata_code=row[5],
+                    name=row[2],
+                    municipality=row[3],
+                    continent=row[4],
+                )
+        # for row in df.itertuples():
+        #     Airports.objects.get_or_create(
+        #         iata=row.iata,
+        #         name_ru=row.name_ru,
+        #         name_en=row.name_en,
+        #         parent_name_en=row.parent_name_en,
+        #     )
 
         return Response("Success")
 
 
 class CitySearchView(generics.ListAPIView):
-    serializer_class = AirportSerializer
+    serializer_class = AirportSerializers
 
     def get_queryset(self):
         query = self.request.GET.get("city")
-        city = to_latin(query)
-        queryset = Airports.objects.all()
-        if city:
-            queryset = queryset.filter(name_en__istartswith=city).order_by('name_en')
-            # queryset = queryset.extra(where=["%s LIKE name_en||'%%'"], params=[city])
+        queryset = Airport.objects.all()
+        if query:
+            queryset = queryset.filter(continent__icontains=query)
+        if len(queryset) < 1:
+            queryset = Airport.objects.filter(municipality__icontains=query)
+        if len(queryset) < 1:
+            queryset = Airport.objects.filter(name__icontains=query)
         return queryset
 
 
@@ -105,7 +113,7 @@ class TestView(APIView):
             client.offer_requests.create()
             .passengers([{"type": "adult"}])
             .slices(slices)
-            .return_offers()
+            .return_offers('true')
             .execute(cabin_class)
         )
         offers = offer_request.offers
@@ -115,6 +123,7 @@ class TestView(APIView):
         for idx, offer in enumerate(offers):
             # print(len(offer.slices[0].segments))
             if len(offer.slices[0].segments) < 2:
+                print(offer)
                 flights.append(dict(
                     id=offer.id,
                     length=len(offer.slices[0].segments),
@@ -162,6 +171,50 @@ class TestView(APIView):
             "count": str(fly_count),
             'list': flights,
             'passengers': passess,
+            'offer_request_id': offer_request.id
+        }, status=status.HTTP_200_OK)
+
+
+class TestRoundTripView(APIView):
+
+    def post(self, request):
+        origin = request.data.get("from")
+        destination = request.data.get("to")
+        depart = request.data.get("date")
+        slices = [
+            {
+                "origin": "TAS",
+                "destination": "NYC",
+                "departure_date": "2022-12-26"
+            },
+            {
+                "origin": "NYC",
+                "destination": "MOW",
+                "departure_date": "2023-01-26"
+            },
+            {
+                "origin": "MOW",
+                "destination": "TAS",
+                "departure_date": "2023-01-30"
+            }
+        ]
+        cabin_class = 'economy'
+        offer_request = (
+            client.offer_requests.create()
+            .passengers([{"type": "adult"}])
+            .slices(slices)
+            .return_offers()
+            .execute(cabin_class)
+        )
+        offers = offer_request.offers
+        flights = []
+        fly_count = 0
+        for idx, offer in enumerate(offers):
+            print(len(offer.slices))
+        return Response({
+            'msg': "Success",
+            "count": str(fly_count),
+            'list': flights,
             'offer_request_id': offer_request.id
         }, status=status.HTTP_200_OK)
 
@@ -214,9 +267,11 @@ class ChoiceSeatAPIView(APIView):
             })
             .execute()
         )
-        payment_intent_id = res['data']['id']
-        client_token = res['data']['client_token']
-
+        # print(res.id)
+        # print(res.client_token)
+        payment_intent_id = res.id
+        client_token = res.client_token
+        # print(res)
         return Response({
             'payment_intent_id': payment_intent_id,
             'client_token': client_token,

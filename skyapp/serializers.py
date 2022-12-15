@@ -1,9 +1,9 @@
 from rest_framework import serializers
 
-from skyapp.models import Airports
+from skyapp.models import Airport
 
 
-class AirportSerializer(serializers.ModelSerializer):
+class AirportSerializers(serializers.ModelSerializer):
     class Meta:
-        model = Airports
-        fields = ('iata', 'name_en', 'parent_name_en')
+        model = Airport
+        fields = ['id', 'name', 'iata_code', 'continent', 'municipality']

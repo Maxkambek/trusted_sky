@@ -1,4 +1,4 @@
 from django.contrib import admin
-from .models import Airports
+from .models import Airport
 
-admin.site.register(Airports)
+admin.site.register(Airport)

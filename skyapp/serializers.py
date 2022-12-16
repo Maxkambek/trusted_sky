@@ -6,4 +6,4 @@ from skyapp.models import Airport
 class AirportSerializers(serializers.ModelSerializer):
     class Meta:
         model = Airport
-        fields = ['id', 'name', 'iata_code', 'continent', 'municipality']
+        fields = ['id', 'name', 'iata_code', 'continent', 'municipality', 'city', 'city_code']

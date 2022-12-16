@@ -113,3 +113,36 @@
 # #             }}
 # #         res = result(data)
 # #         return Response({'success': True, 'data': res})
+
+# class CityCreateView(generics.GenericAPIView):
+#     serializer_class = AirportSerializers
+#
+#     def post(self, request):
+#         file = request.data.get("file")
+#         rd = pd.read_excel(f"{file}")
+#         df = pd.DataFrame(rd)
+#         query = Airport.objects.all()
+#         for row in df.itertuples():
+#             for i in query:
+#                 if row[4] == i.iata_code:
+#                     i.city = row[1]
+#                     i.city_code = row[2]
+#                     i.save()
+#             # print(row[4])
+#
+#             # if len(row[5]) > 2:
+#             #     Airport.objects.get_or_create(
+#             #         iata_code=row[5],
+#             #         name=row[2],
+#             #         municipality=row[3],
+#             #         continent=row[4],
+#             #     )
+#         # for row in df.itertuples():
+#         #     Airports.objects.get_or_create(
+#         #         iata=row.iata,
+#         #         name_ru=row.name_ru,
+#         #         name_en=row.name_en,
+#         #         parent_name_en=row.parent_name_en,
+#         #     )
+#
+#         return Response("Success")

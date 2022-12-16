@@ -10,32 +10,6 @@ from duffel_api import Duffel
 client = Duffel(access_token='duffel_test_yMbiVo4D2-niVT27q2XEy87CSMwsWvSE5Uu4YMm9wD7')
 
 
-class CityCreateView(generics.GenericAPIView):
-    serializer_class = AirportSerializers
-
-    def post(self, request):
-        file = request.data.get("file")
-        rd = pd.read_csv(f"{file}")
-        df = pd.DataFrame(rd)
-        for row in df.itertuples():
-            if len(row[5]) > 2:
-                Airport.objects.get_or_create(
-                    iata_code=row[5],
-                    name=row[2],
-                    municipality=row[3],
-                    continent=row[4],
-                )
-        # for row in df.itertuples():
-        #     Airports.objects.get_or_create(
-        #         iata=row.iata,
-        #         name_ru=row.name_ru,
-        #         name_en=row.name_en,
-        #         parent_name_en=row.parent_name_en,
-        #     )
-
-        return Response("Success")
-
-
 class CitySearchView(generics.ListAPIView):
     serializer_class = AirportSerializers
 
@@ -43,7 +17,7 @@ class CitySearchView(generics.ListAPIView):
         query = self.request.GET.get("city")
         queryset = Airport.objects.all()
         if query:
-            queryset = queryset.filter(continent__icontains=query)
+            queryset = queryset.filter(city_code=query)
         if len(queryset) < 1:
             queryset = Airport.objects.filter(municipality__icontains=query)
         if len(queryset) < 1:
@@ -91,16 +65,19 @@ class TestView(APIView):
         origin = request.data.get("from")
         destination = request.data.get("to")
         depart = request.data.get("date")
+        adult = request.data.get('adult')
+        young = request.data.get('young')
+        baby = request.data.get('baby')
         # cabin_class = self.request.data.get('cabin_class')
-        res = self.request.data.get('passengers')
         passess = []
-        for i in res:
-            if int(i) > 12:
-                passess.append({'type': 'adult'})
-            if int(i) < 2:
-                passess.append({'age': 1})
-            if int(i) < 12:
-                passess.append({'age': int(i)})
+        for i in range(adult):
+            passess.append({'type': 'adult'})
+        if young:
+            for i in range(int(young)):
+                passess.append({'age': int(young)})
+        if baby:
+            for i in range(int(baby)):
+                passess.append({'age': int(baby)})
         slices = [
             {
                 "origin": origin,
@@ -128,7 +105,7 @@ class TestView(APIView):
                     id=offer.id,
                     length=len(offer.slices[0].segments),
                     name=offer.owner.name,
-                    amount=float(offer.total_amount) + float(offer.total_amount) / 20,
+                    amount=round(float(offer.total_amount) + float(offer.total_amount) / 20),
                     depart=offer.slices[0].segments[0].departing_at,
                     arriving_at=offer.slices[0].segments[0].arriving_at,
                     duration=date_time(offer.slices[0].duration),
